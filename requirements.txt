@@ -1,0 +1,26 @@
+numpy
+pandas
+PyYAML
+joblib
+scikit-learn
+xgboost
+matplotlib
+seaborn
+plotly
+streamlit
+groq
+pytest
+python-dotenv
+scipy
+statsmodels
+shap
+-e .
+
+
+
+
+
+
+
+
+  
