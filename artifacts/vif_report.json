@@ -1,0 +1,8 @@
+{
+  "age": 1.000036275377993,
+  "bmi": 1.0689607617831283,
+  "children": 1.0000260273704542,
+  "smoker_bmi_interaction": 1.0690240090395096,
+  "medical_history_missing": 1.0026590193918345,
+  "family_medical_history_missing": 1.0026893697675943
+}

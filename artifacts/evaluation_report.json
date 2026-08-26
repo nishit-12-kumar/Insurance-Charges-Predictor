@@ -1,0 +1,37 @@
+{
+  "model_name": "LinearRegression",
+  "r2": 0.7886631726586305,
+  "adjusted_r2": 0.7881971753779766,
+  "mae": 1583.8999942841451,
+  "rmse": 2024.6496236604864,
+  "mape": 0.10430321157933542,
+  "top_features": {
+    "ordinal__coverage_level": 2496.0796930534675,
+    "nominal__smoker_yes": 2491.0601146462873,
+    "nominal__smoker_no": 2491.0601146462845,
+    "nominal__family_medical_history_Heart disease": 1768.0938092795618,
+    "nominal__medical_history_Heart disease": 1751.820308208616,
+    "nominal__family_medical_history_High blood pressure": 1259.5158077429198,
+    "nominal__medical_history_High blood pressure": 1244.5670293363744,
+    "nominal__exercise_frequency_Frequently": 1134.6725446189766,
+    "nominal__occupation_White collar": 1007.7459701997168,
+    "nominal__occupation_Unemployed": 1000.7723968595934,
+    "nominal__exercise_frequency_Never": 899.5085510173537,
+    "nominal__medical_history_Diabetes": 507.83129013600865,
+    "nominal__family_medical_history_Diabetes": 507.2768960715627,
+    "nominal__gender_female": 501.11403076842544,
+    "nominal__gender_male": 501.114030768423
+  },
+  "segment_errors": {
+    "smoker": {
+      "n": 7567,
+      "mae": 1589.2022842903639,
+      "rmse": 2029.2407870181314
+    },
+    "non_smoker": {
+      "n": 7433,
+      "mae": 1578.5021161088382,
+      "rmse": 2019.964973048683
+    }
+  }
+}
