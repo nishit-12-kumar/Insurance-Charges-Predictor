@@ -85,14 +85,15 @@ _FORBIDDEN_KEYWORDS = (
 class NLQueryError(Exception):
     """Raised when a natural-language question can't be safely turned into SQL."""
 
-
+# Strips ```sql fences from the model's output, if present.
 def _strip_code_fences(text: str) -> str:
     text = text.strip()
     text = re.sub(r"^```(?:sql)?\s*", "", text, flags=re.IGNORECASE)
     text = re.sub(r"```$", "", text.strip())
     return text.strip().rstrip(";").strip()
 
-
+# Validates the generated SQL query.
+# Raises NLQueryError if the query is unsafe or invalid.
 def validate_sql(sql: str) -> str:
     """Raise NLQueryError unless `sql` is a single, read-only SELECT statement."""
     if not sql:
@@ -113,7 +114,7 @@ def validate_sql(sql: str) -> str:
 
     return sql
 
-
+# Generates a validated SQL query from a natural-language question.
 def generate_sql(question: str, model: str = DEFAULT_GROQ_MODEL) -> str:
     """Turn a plain-English question into a validated SQLite SELECT query via Groq.
 

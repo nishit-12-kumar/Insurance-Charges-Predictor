@@ -8,6 +8,8 @@ how a data scientist would typically pull a modelling dataset out of a
 real analytical database.
 """
 
+# This file handles all the basic communication between your Python code and the SQLite database.
+
 
 from __future__ import annotations
 
@@ -53,12 +55,6 @@ AVG_CHARGES_BY_COVERAGE_SQL = f"""
     ORDER BY avg_charges DESC;
 """
 
-# NOTE: missing medical_history / family_medical_history values are filled
-# with the literal string "Unknown" by DataIngestion (they're genuine NaN
-# in the source data, ~5% of rows each — not the string "None"). This query
-# previously checked `!= 'None'`, which no row ever matches, so the filter
-# silently did nothing and the query returned every row regardless of
-# disclosed medical history.
 HIGH_RISK_BY_OCCUPATION_SQL = f"""
     SELECT occupation,
            COUNT(*) AS n_applicants,
@@ -88,15 +84,15 @@ CHARGES_BY_AGE_BUCKET_SQL = f"""
 def get_connection(db_path: str | Path) -> sqlite3.Connection:
     return sqlite3.connect(str(db_path))
 
-
+# takes a Pandas DataFrame and stores it in the applicants table.
+# It also creates an index on split to make split-based queries faster.
 def load_table_to_sqlite(df: pd.DataFrame, db_path: str | Path) -> None:
-    """Write a dataframe to the `applicants` table, replacing any existing data."""
     with get_connection(db_path) as conn:
         df.to_sql(TABLE_NAME, conn, if_exists="replace", index=False)
         conn.execute(CREATE_TABLE_INDEX_SQL)
         conn.commit()
 
-
+# read_split() takes "train", "val", or "test" and retrieves only that data.
 def read_split(db_path: str | Path, split: str) -> pd.DataFrame:
     """Read one split ('train' / 'val' / 'test') back out via SQL."""
     with get_connection(db_path) as conn:

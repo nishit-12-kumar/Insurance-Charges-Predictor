@@ -1,15 +1,15 @@
-"""Groq API client — the ONLY file in this project that talks to Groq.
+# Groq API client — the ONLY file in this project that talks to Groq.
+#
+# The API key lives in a `.env` file at the project root (never hardcoded,
+# never typed into the UI). Everything else (prompt construction, SQL
+# validation) stays in `nl_to_sql.py`; this file's job is strictly "give me
+# a configured client" / "run one chat completion".
+#
+# Setup:
+#     1. Copy `.env.example` to `.env` at the project root.
+#     2. Put your real key in it:  GROQ_API_KEY=gsk_...
+#     3. Get a free key at https://console.groq.com
 
-The API key lives in a `.env` file at the project root (never hardcoded,
-never typed into the UI). Everything else (prompt construction, SQL
-validation) stays in `nl_to_sql.py`; this file's job is strictly "give me
-a configured client" / "run one chat completion".
-
-Setup:
-    1. Copy `.env.example` to `.env` at the project root.
-    2. Put your real key in it:  GROQ_API_KEY=gsk_...
-    3. Get a free key at https://console.groq.com
-"""
 from __future__ import annotations
 
 import os
@@ -23,9 +23,6 @@ from src.logger import get_logger
 
 logger = get_logger(__name__)
 
-# Load variables from a .env file at the project root into os.environ.
-# No-op (and safe) if the file doesn't exist — falls back to whatever is
-# already set in the real environment.
 _ROOT_ENV_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
 load_dotenv(dotenv_path=_ROOT_ENV_PATH)
 
@@ -36,12 +33,12 @@ DEFAULT_GROQ_MODEL = "openai/gpt-oss-120b"
 class GroqConfigError(Exception):
     """Raised when no Groq API key can be found anywhere (.env / environment)."""
 
-
+# Looks for: GROQ_API_KEY in the environment.
 def get_api_key() -> Optional[str]:
     """Return the configured Groq API key, or None if it isn't set anywhere."""
     return os.environ.get("GROQ_API_KEY")
 
-
+# Builds a Groq client using the key from `.env`
 def get_groq_client():
     """Build and return a configured Groq client, reading the key from `.env`."""
     try:
@@ -61,12 +58,7 @@ def get_groq_client():
     return Groq(api_key=key)
 
 
-def chat_completion(
-    system_prompt: str,
-    user_prompt: str,
-    model: str = DEFAULT_GROQ_MODEL,
-    temperature: float = 0,
-) -> str:
+def chat_completion( system_prompt: str, user_prompt: str, model: str = DEFAULT_GROQ_MODEL, temperature: float = 0,) -> str:
     """Run a single chat completion against Groq and return the raw text reply."""
     try:
         client = get_groq_client()

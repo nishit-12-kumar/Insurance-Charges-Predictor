@@ -45,22 +45,8 @@ class InsuranceApplicant:
 
 
 def _engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    """Add the same engineered columns DataIngestion adds at training time.
-
-    The fitted preprocessor expects bmi_category, age_group,
-    smoker_bmi_interaction, and the two `<col>_missing` flag columns —
-    PredictionPipeline calls preprocessor.transform() directly on raw
-    applicant records (it never goes through DataIngestion), so this must
-    be replicated here or preprocessor.transform() raises a "columns are
-    missing" error. Bin definitions are imported from DataIngestion rather
-    than duplicated, so the two stay in sync automatically.
-
-    A record is flagged as "missing" if the value is NaN OR the literal
-    string "Unknown" — the latter matters because a UI (e.g. the Streamlit
-    form) may let a user explicitly select "Unknown" rather than leaving
-    the field empty, and that should carry the same signal as an
-    undisclosed value did at training time.
-    """
+    """Engineer features for the prediction pipeline.
+    This is the same feature engineering that was applied during training."""
     df = df.copy()
     for col in UNKNOWN_FILL_COLUMNS:
         if col in df.columns:
@@ -103,6 +89,7 @@ class PredictionPipeline:
         except Exception as e:
             raise InsuranceCostException(e, sys) from e
 
+    # Predict the insurance charge for a single applicant.
     def predict_single(self, applicant: InsuranceApplicant) -> float:
         """Predict the charge for a single InsuranceApplicant."""
         return float(self.predict(applicant.to_dataframe()).iloc[0])

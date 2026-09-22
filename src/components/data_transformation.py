@@ -1,18 +1,4 @@
-"""Data Transformation: builds and fits a single scikit-learn
-ColumnTransformer (median-impute + scale numeric, constant "Unknown"-impute +
-one-hot encode nominal categoricals, ordinal-encode naturally-ordered
-categoricals) so the exact same fitted object is reused at both training
-and inference time. Also runs a post-fit multicollinearity (VIF) check on
-the numeric block.
-
-The categorical imputer fills with a constant "Unknown" category rather than
-most-frequent. This matches the decision already made upstream in
-DataIngestion (missing medical_history / family_medical_history become an
-explicit "Unknown" category instead of being folded into whichever category
-is most common) and — importantly — keeps that behaviour consistent at
-inference time too, since PredictionPipeline calls this fitted preprocessor
-directly on raw applicant records that never pass through DataIngestion.
-"""
+# Data Transformation: builds and fits a single scikit-learn ColumnTransformer for the reduced feature set, and applies it to train/val/test.
 from __future__ import annotations
 
 import sys
@@ -31,11 +17,7 @@ from src.utils import save_json, save_object
 
 logger = get_logger(__name__)
 
-# Category orders for naturally-ordered columns, ordinal-encoded instead of
-# one-hot. bmi_category / age_group orders must stay in sync with the bin
-# labels created in DataIngestion._engineer_features (BMI_LABELS / AGE_LABELS)
-# — in a fuller production setup these would live in one shared place
-# (e.g. config.yaml) rather than being duplicated across two files.
+# Define the order of categories for ordinal encoding.
 ORDINAL_CATEGORY_ORDERS: Dict[str, list] = {
     "coverage_level": ["Basic", "Standard", "Premium"],
     "bmi_category": ["Underweight", "Normal", "Overweight", "Obese"],
@@ -51,17 +33,16 @@ class DataTransformation:
         self.artifacts_cfg = config["artifacts"]
 
     def get_preprocessor(self) -> ColumnTransformer:
-        """Build the numeric + nominal + ordinal ColumnTransformer (unfitted)."""
+        # Build a ColumnTransformer that applies the appropriate preprocessing to numeric, nominal, and ordinal features.
+
         numeric_cols = self.schema_cfg["numeric_features"]
         categorical_cols = self.schema_cfg["categorical_features"]
 
-        # Split configured categoricals into "naturally ordered" (ordinal
-        # encode) vs. everything else (one-hot encode) — coverage_level,
-        # bmi_category, and age_group all have a real order that one-hot
-        # would throw away.
+        # Split categorical columns into nominal and ordinal based on the ORDINAL_CATEGORY_ORDERS mapping.
         ordinal_cols = [c for c in categorical_cols if c in ORDINAL_CATEGORY_ORDERS]
         nominal_cols = [c for c in categorical_cols if c not in ORDINAL_CATEGORY_ORDERS]
 
+        # Define pipelines for each type of feature
         numeric_pipeline = Pipeline(steps=[
             ("imputer", SimpleImputer(strategy="median")),
             ("scaler", StandardScaler()),
@@ -79,6 +60,7 @@ class DataTransformation:
             )),
         ])
 
+        # Combine the pipelines into a single ColumnTransformer
         transformers = [("numeric", numeric_pipeline, numeric_cols)]
         if nominal_cols:
             transformers.append(("nominal", nominal_pipeline, nominal_cols))
@@ -88,13 +70,8 @@ class DataTransformation:
         return ColumnTransformer(transformers=transformers, remainder="drop")
 
     def _log_vif(self, X_train_t: np.ndarray, feature_names: list) -> None:
-        """Compute and log/save Variance Inflation Factor for the numeric block only.
-
-        VIF is only meaningful on continuous predictors — one-hot encoded
-        dummy columns are inherently collinear within their own group by
-        construction, so they're excluded here rather than producing
-        misleading near-infinite VIF values.
-        """
+        # Log Variance Inflation Factor (VIF) for numeric features to check for multicollinearity.
+        # VIF is only applicable to numeric features, so we extract the numeric block from the transformed data.
         try:
             import statsmodels.api as sm
             from statsmodels.stats.outliers_influence import variance_inflation_factor
@@ -124,21 +101,26 @@ class DataTransformation:
         """Fit on train, transform train/val/test, persist the fitted preprocessor."""
         logger.info("Starting data transformation")
         try:
+            # Load the train, validation, and test datasets
             target = self.schema_cfg["target"]
             train_df, val_df, test_df = pd.read_csv(train_csv), pd.read_csv(val_csv), pd.read_csv(test_csv)
 
+            # Separate features and target for each dataset
             X_train, y_train = train_df.drop(columns=[target]), train_df[target].values
             X_val, y_val = val_df.drop(columns=[target]), val_df[target].values
             X_test, y_test = test_df.drop(columns=[target]), test_df[target].values
 
+            # Fit the preprocessor on the training data and transform all datasets
             preprocessor = self.get_preprocessor()
             X_train_t = preprocessor.fit_transform(X_train)
             X_val_t = preprocessor.transform(X_val)
             X_test_t = preprocessor.transform(X_test)
 
+            # Log VIF for numeric features to check for multicollinearity
             feature_names = preprocessor.get_feature_names_out().tolist()
             self._log_vif(X_train_t, feature_names)
 
+            # Persist the fitted preprocessor to disk for future use
             save_object(self.artifacts_cfg["preprocessor"], preprocessor)
             logger.info(
                 f"Transformation complete. Train: {X_train_t.shape}, Val: {X_val_t.shape}, "
@@ -147,8 +129,3 @@ class DataTransformation:
             return X_train_t, y_train, X_val_t, y_val, X_test_t, y_test, feature_names
         except Exception as e:
             raise InsuranceCostException(e, sys) from e
-
-
-
-
-

@@ -19,7 +19,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
+# Here it predicts the average insurance cost for everyone
 from sklearn.dummy import DummyRegressor
+
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import ElasticNet, LinearRegression, Ridge
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
@@ -28,6 +31,8 @@ from sklearn.model_selection import RandomizedSearchCV, cross_val_score, learnin
 from src.exception import InsuranceCostException
 from src.logger import get_logger
 from src.utils import save_json, save_object
+# save_object → save the trained model
+# save_json → save metadata
 
 logger = get_logger(__name__)
 
@@ -108,6 +113,7 @@ class ModelTrainer:
 
     def _estimator_kwargs(self, name: str) -> Dict[str, Any]:
         """Build model-specific constructor arguments."""
+
         random_state = self.cfg["random_state"]
         n_jobs = self.cfg["n_jobs"]
 
@@ -153,13 +159,8 @@ class ModelTrainer:
         """Choose safe cross-validation parallelism."""
         return 1 if self._is_gpu_estimator(estimator) else self.cfg["n_jobs"]
 
-    def _tune(
-        self,
-        estimator: Any,
-        param_grid: Dict[str, Any],
-        X_train: np.ndarray,
-        y_train: np.ndarray,
-    ) -> tuple[Any, Dict[str, Any]]:
+    # trains the model directly, or searches for the best hyperparameters.
+    def _tune(self, estimator: Any, param_grid: Dict[str, Any], X_train: np.ndarray, y_train: np.ndarray,) -> tuple[Any, Dict[str, Any]]:
         """Fit directly or tune using the search space supplied by config.yaml."""
         if not param_grid:
             estimator.fit(X_train, y_train)
@@ -179,6 +180,7 @@ class ModelTrainer:
 
         return search.best_estimator_, search.best_params_
 
+
     @staticmethod
     def _regression_metrics(
         y_true: np.ndarray,
@@ -190,7 +192,8 @@ class ModelTrainer:
             "mae": float(mean_absolute_error(y_true, y_pred)),
             "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred))),
         }
-
+    
+    # Stop training when validation performance stops improving.
     def _apply_xgb_early_stopping(
         self,
         model: Any,
@@ -222,6 +225,7 @@ class ModelTrainer:
 
         return refit_model
 
+    # Predict the average insurance charge for every person.
     def _fit_baseline(
         self,
         X_train: np.ndarray,
@@ -255,6 +259,8 @@ class ModelTrainer:
             "train_time_sec": 0.0,
         }
 
+    # Plot the learning curve for the best model.
+    # This helps diagnose things like underfitting and overfitting.
     def _plot_learning_curve(
         self,
         estimator: Any,
@@ -305,6 +311,8 @@ class ModelTrainer:
                 e,
             )
 
+    # Select the best model from the report DataFrame.
+    # performance ≈ best model AND model is simpler → choose the simpler model.
     def _select_best(self, report_df: pd.DataFrame) -> str:
         """
         Select the champion model.
@@ -354,15 +362,8 @@ class ModelTrainer:
 
         return chosen["model"]
 
-    def _train_model(
-        self,
-        name: str,
-        model_cfg: Dict[str, Any],
-        X_train: np.ndarray,
-        y_train: np.ndarray,
-        X_val: np.ndarray,
-        y_val: np.ndarray,
-    ) -> tuple[Dict[str, Any], Any]:
+    # Train one enabled model using only its YAML configuration.
+    def _train_model( self, name: str, model_cfg: Dict[str, Any], X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray, y_val: np.ndarray,) -> tuple[Dict[str, Any], Any]:
         """Train one enabled model using only its YAML configuration."""
         logger.info("Training model: %s", name)
         start = time.time()
@@ -377,6 +378,7 @@ class ModelTrainer:
             else {}
         )
 
+        # Tunes/trains the model.
         best_model, best_params = self._tune(
             estimator,
             param_grid,
@@ -441,13 +443,8 @@ class ModelTrainer:
 
         return metrics, best_model
 
-    def initiate_model_training(
-        self,
-        X_train: np.ndarray,
-        y_train: np.ndarray,
-        X_val: np.ndarray,
-        y_val: np.ndarray,
-    ) -> tuple[str, Any]:
+    # trains the model directly, or searches for the best hyperparameters.
+    def initiate_model_training( self, X_train: np.ndarray, y_train: np.ndarray, X_val: np.ndarray, y_val: np.ndarray,) -> tuple[str, Any]:
         """Train enabled models, select the champion, and save artifacts."""
         logger.info("Starting model training")
 
